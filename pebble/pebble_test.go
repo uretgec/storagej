@@ -515,6 +515,27 @@ func TestMetricsSnapshotFields(t *testing.T) {
 	}
 }
 
+// TestMetricsSnapshotPublicMethod verifies the exported MetricsSnapshot
+// wrapper (used by /health) returns the same shape as the internal
+// snapshot() used by the periodic OnMetrics callback — they must not drift
+// apart into two different metric-gathering code paths.
+func TestMetricsSnapshotPublicMethod(t *testing.T) {
+	s := openTestStore(t, storagej.DefaultOptions())
+	ctx := context.Background()
+
+	if err := s.Set(ctx, []byte("k"), []byte("v")); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+
+	got := s.MetricsSnapshot()
+	if got.CacheHitRatePercent < 0 || got.CacheHitRatePercent > 100 {
+		t.Fatalf("cache hit rate out of range: %f", got.CacheHitRatePercent)
+	}
+	if got.TotalFiles < 0 || got.TotalSizeMB < 0 || got.WALSizeMB < 0 {
+		t.Fatalf("negative metric value: %+v", got)
+	}
+}
+
 func TestOnMetricsDelivered(t *testing.T) {
 	received := make(chan storagej.MetricsSnapshot, 1)
 	opts := storagej.DefaultOptions()

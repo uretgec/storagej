@@ -370,6 +370,15 @@ func (s *Store) Metrics() *pebble.Metrics {
 	return s.db.Metrics()
 }
 
+// MetricsSnapshot returns a point-in-time storagej.MetricsSnapshot, computed
+// on demand. Unlike the periodic OnMetrics callback (which requires
+// Options.MetricsInterval > 0 to be configured up front), this can be
+// called any time — e.g. from an HTTP /health endpoint — without setting up
+// periodic collection.
+func (s *Store) MetricsSnapshot() storagej.MetricsSnapshot {
+	return s.snapshot()
+}
+
 // Batch is the Pebble implementation of storagej.Batch. It is NOT thread-safe;
 // each goroutine must create its own.
 type Batch struct {

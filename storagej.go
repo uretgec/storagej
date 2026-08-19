@@ -225,17 +225,17 @@ type Event struct {
 // caller.
 type MetricsSnapshot struct {
 	// DiskMB is the total disk usage in megabytes.
-	DiskMB int64
+	DiskMB int64 `json:"disk_mb"`
 	// CacheHitRatePercent is the block cache hit ratio (0-100).
-	CacheHitRatePercent float64
+	CacheHitRatePercent float64 `json:"cache_hit_rate_percent"`
 	// TotalFiles is the total number of SST files across all levels.
-	TotalFiles int64
+	TotalFiles int64 `json:"total_files"`
 	// TotalSizeMB is the total data size across all levels in megabytes.
-	TotalSizeMB int64
+	TotalSizeMB int64 `json:"total_size_mb"`
 	// CompactionCount is the total number of completed compactions.
-	CompactionCount int64
+	CompactionCount int64 `json:"compaction_count"`
 	// CompactionsInProgress is the number of compactions currently running.
-	CompactionsInProgress int64
+	CompactionsInProgress int64 `json:"compactions_in_progress"`
 	// WALSizeMB is the write-ahead log size in megabytes.
-	WALSizeMB int64
+	WALSizeMB int64 `json:"wal_size_mb"`
 }

@@ -1,6 +1,6 @@
 module github.com/uretgec/storagej
 
-go 1.24.0
+go 1.22.0
 
 require github.com/cockroachdb/pebble v1.1.2
 
