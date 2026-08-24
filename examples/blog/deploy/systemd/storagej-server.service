@@ -1,0 +1,48 @@
+# storagej-server systemd unit.
+#
+# Setup (run once as root):
+#   useradd --system --home-dir /var/lib/storagej --shell /usr/sbin/nologin storagej
+#   mkdir -p /var/lib/storagej/data
+#   chown -R storagej:storagej /var/lib/storagej
+#   cp storagej-server /usr/local/bin/storagej-server   # the built binary
+#   cp storagej-server.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now storagej-server
+#
+# Logs: journalctl -u storagej-server -f
+# (cmd/storagej-server writes to the stdlib log package, which systemd
+# captures into the journal automatically — no extra wiring needed.)
+
+[Unit]
+Description=storagej blog server
+After=network.target
+Documentation=https://github.com/uretgec/storagej
+
+[Service]
+Type=simple
+User=storagej
+Group=storagej
+
+ExecStart=/usr/local/bin/storagej-server \
+    -addr :8080 \
+    -data /var/lib/storagej/data \
+    -tenant default \
+    -metrics-interval 45s
+
+Restart=on-failure
+RestartSec=5
+
+# --- sandboxing -----------------------------------------------------------
+# Pebble takes an exclusive lock on -data, so a stray second instance
+# failing to start (e.g. during a bad restart loop) fails safely rather
+# than corrupting anything — but these settings limit the blast radius of
+# anything else going wrong regardless.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/storagej
+StateDirectory=storagej
+
+[Install]
+WantedBy=multi-user.target
