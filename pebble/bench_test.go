@@ -189,3 +189,56 @@ func BenchmarkScanFull(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkOpenMem and BenchmarkOpenDisk measure store construction cost —
+// the number backing OpenMem's "much faster for tests" claim. Compare with:
+//
+//	go test ./pebble -bench='BenchmarkOpen$|BenchmarkOpenMem$' -benchmem -run=^$
+func BenchmarkOpenMem(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, err := OpenMem(storagej.DefaultOptions())
+		if err != nil {
+			b.Fatal(err)
+		}
+		s.Close()
+	}
+}
+
+func BenchmarkOpenDisk(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		dir := b.TempDir()
+		b.StartTimer()
+
+		s, err := Open(dir, storagej.DefaultOptions())
+		if err != nil {
+			b.Fatal(err)
+		}
+		s.Close()
+	}
+}
+
+// BenchmarkSnapshot measures the cost of taking a snapshot — cheap in
+// Pebble (pins a sequence number and reference-counts the SST files that
+// exist right now; no data copy), which is what makes SnapshotReader
+// practical for an ordinary request path rather than something to reserve
+// for rare, expensive operations.
+func BenchmarkSnapshot(b *testing.B) {
+	s := openBenchStore(b)
+	ctx := context.Background()
+	for i := 0; i < 100; i++ {
+		if err := s.Set(ctx, []byte(fmt.Sprintf("k%03d", i)), []byte("v")); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		snap := s.Snapshot()
+		snap.Close()
+	}
+}

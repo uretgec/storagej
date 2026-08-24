@@ -85,6 +85,27 @@ type Batch interface {
 	Close() error
 }
 
+// Reader is the read-only subset of Store: Get, GetInto, Exists, Scan,
+// PrefixScan — everything except Set/Delete/NewBatch/Close. Store already
+// has all five with identical signatures, so it satisfies Reader
+// automatically (Go's structural typing) without any change to Store's own
+// definition above; this is purely additive.
+//
+// Reader exists for views that support reading but not writing — most
+// notably a point-in-time snapshot, where "Set" wouldn't mean anything
+// coherent. See pebble.Store.Snapshot for the concrete example.
+type Reader interface {
+	Get(ctx context.Context, key []byte) ([]byte, error)
+	GetInto(ctx context.Context, key, dst []byte) ([]byte, error)
+	Exists(ctx context.Context, key []byte) (bool, error)
+	Scan(ctx context.Context, start, end []byte, fn func(key, value []byte) error) error
+	PrefixScan(ctx context.Context, prefix []byte, fn func(key, value []byte) error) error
+}
+
+// Compile-time check that Store's read methods are a superset of Reader's
+// — i.e. that the doc comment above is actually true.
+var _ Reader = (Store)(nil)
+
 // -----------------------------------------------------------------------------
 // Options
 // -----------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import (
 
 	"github.com/cockroachdb/pebble"
 	"github.com/cockroachdb/pebble/bloom"
+	"github.com/cockroachdb/pebble/vfs"
 	"github.com/uretgec/storagej"
 )
 
@@ -38,6 +39,33 @@ var _ storagej.Store = (*Store)(nil)
 // Options.Normalize. When OnEvent or MetricsInterval+OnMetrics are set, the
 // corresponding background behaviors are enabled.
 func Open(path string, opts storagej.Options) (*Store, error) {
+	return open(path, opts, nil)
+}
+
+// OpenMem opens a purely in-memory Pebble store: nothing touches disk, not
+// even a WAL directory. It shares Open's exact Options handling, callback
+// wiring, and interface — the only difference is the backing filesystem.
+//
+// Two things worth knowing:
+//   - Options.WALDir is ignored. A separate WAL directory is a
+//     real-filesystem concept that doesn't apply here.
+//   - Checkpoint(dir) still works, but it writes into this same in-memory
+//     filesystem, not real disk — the checkpoint doesn't survive process
+//     exit any more than the store itself does. Checkpointing to real disk
+//     from a mem store isn't supported; use Open for anything that needs
+//     that.
+//
+// Good for tests (much faster than a real Open with a temp directory —
+// no real file I/O at all) and ephemeral caches where durability across a
+// restart was never the point.
+func OpenMem(opts storagej.Options) (*Store, error) {
+	return open("", opts, vfs.NewMem())
+}
+
+// open is Open and OpenMem's shared implementation. fs is nil for Open
+// (Pebble defaults a nil Options.FS to the real OS filesystem itself) or
+// an in-memory vfs.FS for OpenMem.
+func open(path string, opts storagej.Options, fs vfs.FS) (*Store, error) {
 	opts = opts.Normalize()
 
 	cache := pebble.NewCache(int64(opts.CacheSizeMB) * 1024 * 1024)
@@ -59,17 +87,20 @@ func Open(path string, opts storagej.Options) (*Store, error) {
 		}
 	}
 
-	// Only enforce a WAL subdirectory for writable stores. Read-only stores
-	// (e.g., restored checkpoints) let Pebble follow the manifest's own WAL
-	// layout.
-	walDir := opts.WALDir
-	if walDir == "" && !opts.ReadOnly {
-		walDir = filepath.Join(path, "wal")
-	}
-	if walDir != "" {
-		if err := os.MkdirAll(walDir, 0o755); err != nil {
-			cache.Unref()
-			return nil, fmt.Errorf("storagej: create wal dir: %w", err)
+	// A separate WAL directory is a real-filesystem concept: skip creating
+	// one entirely for an in-memory store (fs != nil), where there's no
+	// real directory to create and Options.WALDir wouldn't mean anything.
+	var walDir string
+	if fs == nil {
+		walDir = opts.WALDir
+		if walDir == "" && !opts.ReadOnly {
+			walDir = filepath.Join(path, "wal")
+		}
+		if walDir != "" {
+			if err := os.MkdirAll(walDir, 0o755); err != nil {
+				cache.Unref()
+				return nil, fmt.Errorf("storagej: create wal dir: %w", err)
+			}
 		}
 	}
 
@@ -92,6 +123,7 @@ func Open(path string, opts storagej.Options) (*Store, error) {
 		WALDir:                      walDir,
 		ReadOnly:                    opts.ReadOnly,
 		EventListener:               s.eventListener(),
+		FS:                          fs, // nil means Pebble's own default (the real OS filesystem)
 	}
 	// Disable seek compaction for sequential-read workloads.
 	pebbleOpts.Experimental.ReadSamplingMultiplier = -1

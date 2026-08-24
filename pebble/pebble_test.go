@@ -619,3 +619,122 @@ func TestCheckpointRestoresData(t *testing.T) {
 		t.Fatalf("restored = %q, want %q", got, "v")
 	}
 }
+
+// -----------------------------------------------------------------------------
+// OpenMem
+// -----------------------------------------------------------------------------
+
+func TestOpenMemBasicCRUD(t *testing.T) {
+	s, err := OpenMem(storagej.DefaultOptions())
+	if err != nil {
+		t.Fatalf("openmem: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	if err := s.Set(ctx, []byte("k"), []byte("v")); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	got, err := s.Get(ctx, []byte("k"))
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if string(got) != "v" {
+		t.Fatalf("get = %q, want %q", got, "v")
+	}
+
+	if err := s.Delete(ctx, []byte("k")); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := s.Get(ctx, []byte("k")); !errors.Is(err, storagej.ErrNotFound) {
+		t.Fatalf("after delete, err = %v, want ErrNotFound", err)
+	}
+}
+
+// TestOpenMemIsolatedInstances guards against the one correctness bug that
+// would matter here: if vfs.NewMem() were somehow shared across calls
+// instead of fresh each time, two OpenMem stores would silently see each
+// other's data.
+func TestOpenMemIsolatedInstances(t *testing.T) {
+	ctx := context.Background()
+
+	a, err := OpenMem(storagej.DefaultOptions())
+	if err != nil {
+		t.Fatalf("openmem a: %v", err)
+	}
+	defer a.Close()
+	b, err := OpenMem(storagej.DefaultOptions())
+	if err != nil {
+		t.Fatalf("openmem b: %v", err)
+	}
+	defer b.Close()
+
+	if err := a.Set(ctx, []byte("k"), []byte("from-a")); err != nil {
+		t.Fatalf("set a: %v", err)
+	}
+	if _, err := b.Get(ctx, []byte("k")); !errors.Is(err, storagej.ErrNotFound) {
+		t.Fatalf("b should not see a's data, err = %v", err)
+	}
+}
+
+func TestOpenMemCloseIdempotent(t *testing.T) {
+	s, err := OpenMem(storagej.DefaultOptions())
+	if err != nil {
+		t.Fatalf("openmem: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("first close: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("second close should not error: %v", err)
+	}
+}
+
+// TestOpenMemIgnoresWALDir locks in the documented behavior: a WALDir that
+// doesn't (and needn't) exist on real disk must not cause OpenMem to fail.
+func TestOpenMemIgnoresWALDir(t *testing.T) {
+	opts := storagej.DefaultOptions()
+	opts.WALDir = "/this/path/does/not/need/to/exist"
+	s, err := OpenMem(opts)
+	if err != nil {
+		t.Fatalf("openmem with WALDir set should not error, got: %v", err)
+	}
+	defer s.Close()
+}
+
+// TestOpenMemFullInterface runs the same scan/prefix-scan/batch shapes the
+// on-disk suite above already covers in detail, just to confirm OpenMem
+// isn't secretly a different, narrower implementation — it shares Open's
+// exact code path past the filesystem choice, so this is intentionally
+// light.
+func TestOpenMemFullInterface(t *testing.T) {
+	s, err := OpenMem(storagej.DefaultOptions())
+	if err != nil {
+		t.Fatalf("openmem: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	b := s.NewBatch()
+	for _, k := range []string{"a", "b", "c"} {
+		if err := b.Set([]byte(k), []byte(k+"-val")); err != nil {
+			t.Fatalf("batch set: %v", err)
+		}
+	}
+	if err := b.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	b.Close()
+
+	var got []string
+	err = s.PrefixScan(ctx, []byte(""), func(key, value []byte) error {
+		got = append(got, string(key))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("prefixscan: %v", err)
+	}
+	if !slices.Equal(got, []string{"a", "b", "c"}) {
+		t.Fatalf("prefixscan = %v, want [a b c]", got)
+	}
+}

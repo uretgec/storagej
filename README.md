@@ -95,6 +95,48 @@ func main() {
 
 `Set`, `Delete`, `Commit`, `Count`, `Close`.
 
+### `pebble.OpenMem`
+
+```go
+db, err := pebble.OpenMem(storagej.DefaultOptions())
+```
+
+A purely in-memory `Store` — same interface, same Options handling, zero
+new dependency (it's `github.com/cockroachdb/pebble/vfs`, already part of
+the required Pebble module). Nothing touches disk, so it's much faster for
+tests than `Open` with a temp directory, and it's a reasonable choice for
+an ephemeral cache where surviving a restart was never the point.
+`Options.WALDir` is ignored (a separate WAL directory is a real-filesystem
+concept), and `Checkpoint` still works but writes into the same in-memory
+filesystem rather than real disk — see the package doc comment on
+`OpenMem` for the full detail.
+
+### `pebble.Store.Snapshot`
+
+```go
+snap := db.Snapshot()
+defer snap.Close()
+
+post, err := snap.Get(ctx, postKey)
+author, err := snap.Get(ctx, authorKey)
+commentCount, err := snap.Get(ctx, commentCountKey)
+// all three reflect the exact same moment, even if a write lands on one
+// of them between these calls
+```
+
+`Snapshot` returns a `*pebble.SnapshotReader` — a consistent, point-in-time
+view satisfying the new `storagej.Reader` interface (`Get`/`GetInto`/
+`Exists`/`Scan`/`PrefixScan`; everything but the writes, which wouldn't
+mean anything coherent on a moment that's already passed). It's for reading
+several keys "as of one moment" on an ordinary request path — cheap in
+Pebble (pins a sequence number, no data copy; see `BenchmarkSnapshot`), not
+something to reserve for rare operations. Call `Close` exactly once when
+done: an unclosed snapshot pins the SST files it can still see, keeping
+superseded data from being compacted away for as long as it stays open.
+
+`storagej.Reader` itself is purely additive — `storagej.Store`'s definition
+didn't change, it just already happens to satisfy `Reader` structurally.
+
 ### Pebble-specific (concrete, not on the interface)
 
 | Method | Description |
@@ -102,6 +144,7 @@ func main() {
 | `Checkpoint(dir)` | Write a consistent snapshot for backup. |
 | `Metrics()` | Read raw Pebble metrics. |
 | `MetricsSnapshot()` | Read a `storagej.MetricsSnapshot` on demand — the same shape `OnMetrics` delivers periodically, but computed immediately. Useful for an HTTP health endpoint; see `examples/blog`. |
+| `Snapshot()` | A consistent, point-in-time `storagej.Reader` — see above. |
 
 ## Events & Metrics
 
@@ -205,6 +248,77 @@ See `repository.TestPutWithIndexSerializesConcurrentConflicts` and its
 neighbors for this proven under `-race` with real goroutines, not just
 asserted in a comment.
 
+## encrypted: transparent value encryption
+
+`encrypted.Store` wraps any `storagej.Store`, encrypting values with
+AES-256-GCM before they reach it and decrypting them on the way back —
+implements `storagej.Store` itself, so it's a drop-in replacement anywhere
+one is expected. Optional, opt-in: nothing else in this toolkit imports it,
+and it adds no dependency beyond Go's own `crypto/*`.
+
+```go
+import "github.com/uretgec/storagej/encrypted"
+
+var key [32]byte // from crypto/rand — generate once, store outside this package
+rand.Read(key[:])
+
+db, _ := pebble.Open("./data", storagej.DefaultOptions())
+enc, err := encrypted.New(db, key)
+
+enc.Set(ctx, []byte("secret"), []byte("sensitive value")) // encrypted at rest
+val, _ := enc.Get(ctx, []byte("secret"))                  // decrypted transparently
+```
+
+**Keys are never encrypted — only values.** This is a hard requirement, not
+an oversight: `keyspace`'s sortable ids and `Scan`/`PrefixScan`'s ordering
+guarantees all depend on keys sorting as plain bytes. Encrypting them would
+silently break every ordering guarantee this toolkit provides.
+
+What this does and doesn't give you, stated plainly: it hides value
+*content* from anyone who can read the underlying store's raw bytes but
+doesn't have the key. It does **not** hide value length (ciphertext ≈
+plaintext length + fixed overhead) or anything about keys — their names,
+which exist, how often each is read or written. Key management is entirely
+on you: `encrypted.New` takes a raw 32-byte key and does nothing else with
+it — no rotation, no derivation, no storage.
+
+## watchable: live change notifications
+
+`watchable.Store` wraps any `storagej.Store`, letting callers subscribe to
+Set/Delete on an exact key or a prefix and receive them on a channel, live,
+as they happen — implements `storagej.Store` itself, so it's a drop-in
+replacement anywhere one is expected. Optional, opt-in: nothing else in
+this toolkit imports it, no dependency beyond the standard library.
+
+```go
+import "github.com/uretgec/storagej/watchable"
+
+w := watchable.New(db)
+
+ch, cancel := w.Watch([]byte("post:123")) // or WatchPrefix for a whole group
+defer cancel()
+
+go func() {
+    for evt := range ch {
+        fmt.Println(evt.Type, string(evt.Key), string(evt.Value))
+    }
+}()
+
+w.Set(ctx, []byte("post:123"), []byte("new content")) // -> SET post:123 new content
+```
+
+**Delivery is best-effort by design.** Each watch channel is buffered
+(`DefaultChannelBuffer`); if a subscriber falls behind, `notify` drops new
+events for it rather than blocking the `Set`/`Delete` call that triggered
+them — an ordinary write must never hang because nobody drained a channel.
+A watch channel is a live tail, not a durable event log; if you need every
+change recorded, that's an outbox/changefeed pattern built on storagej
+itself, a different feature from this one.
+
+This is entirely in-process and in-memory — doesn't persist, isn't visible
+across restarts, and (like everything else built on Pebble's single-process
+directory lock) can't see writes from a different process.
+
 ## Performance
 
 Defaults are tuned for low-resource systems (1-2 vCPU, 2-4GB RAM):
@@ -215,6 +329,29 @@ go test ./pebble -bench=. -benchmem -run=^$
 go test ./pebble -bench=. -benchmem -run=^$ -benchtime=2s
 ```
 
+## storagej-cli
+
+A minimal, domain-agnostic inspection tool — the `redis-cli` equivalent for
+this toolkit. It depends on nothing but `storagej.Store` plus two
+Pebble-specific methods (`Checkpoint`, `MetricsSnapshot`), so it works
+against any store built on this toolkit, blog or otherwise:
+
+```bash
+go build -o storagej-cli ./cmd/storagej-cli
+
+./storagej-cli -data ./data get some-key
+./storagej-cli -data ./data set some-key some-value
+./storagej-cli -data ./data scan post:        # prefix scan
+./storagej-cli -data ./data scan              # (almost) the whole store
+./storagej-cli -data ./data checkpoint ./backup
+./storagej-cli -data ./data metrics           # MetricsSnapshot as JSON
+./storagej-cli -data ./data -readonly get some-key   # no accidental writes
+```
+
+Pebble locks its data directory exclusively — this can't open a store a
+running `storagej-server` (or anything else) already has open. Stop the
+server first, or point it at a `checkpoint` copy instead.
+
 ## Testing
 
 ```bash
@@ -222,6 +359,8 @@ go test ./... -race -v
 go test ./pebble -race -v
 go test ./keyspace -race -v
 go test ./repository -race -v
+go test ./encrypted -race -v
+go test ./watchable -race -v
 ```
 
 (`examples/blog` has its own tests, run separately — see
