@@ -30,8 +30,8 @@ func BenchmarkSet(b *testing.B) {
 	key := make([]byte, 0, 32)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for i := 0; b.Loop(); i++ {
 		key = key[:0]
 		key = append(key, "bench:"...)
 		key = strconv.AppendInt(key, int64(i), 10)
@@ -51,8 +51,8 @@ func BenchmarkGet(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err := s.Get(ctx, key); err != nil {
 			b.Fatal(err)
 		}
@@ -70,8 +70,8 @@ func BenchmarkExists(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err := s.Exists(ctx, key); err != nil {
 			b.Fatal(err)
 		}
@@ -90,8 +90,8 @@ func BenchmarkGetIntoReused(b *testing.B) {
 	dst := make([]byte, 0, 128)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		var err error
 		dst, err = s.GetInto(ctx, key, dst)
 		if err != nil {
@@ -133,11 +133,11 @@ func BenchmarkBatchCommit(b *testing.B) {
 	val := []byte("v")
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for i := 0; b.Loop(); i++ {
 		batch := s.NewBatch()
 		for j := 0; j < 100; j++ {
-			batch.Set([]byte(fmt.Sprintf("batch:%d:%d", i, j)), val)
+			batch.Set(fmt.Appendf(nil, "batch:%d:%d", i, j), val)
 		}
 		if err := batch.Commit(); err != nil {
 			b.Fatal(err)
@@ -151,15 +151,15 @@ func BenchmarkPrefixScan(b *testing.B) {
 	s := openBenchStore(b)
 	ctx := context.Background()
 	for i := 0; i < 1000; i++ {
-		if err := s.Set(ctx, []byte(fmt.Sprintf("scan:post:%04d", i)), []byte("v")); err != nil {
+		if err := s.Set(ctx, fmt.Appendf(nil, "scan:post:%04d", i), []byte("v")); err != nil {
 			b.Fatal(err)
 		}
 	}
 	prefix := []byte("scan:post:")
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		n := 0
 		s.PrefixScan(ctx, prefix, func(key, value []byte) error {
 			n++
@@ -176,14 +176,14 @@ func BenchmarkScanFull(b *testing.B) {
 	s := openBenchStore(b)
 	ctx := context.Background()
 	for i := 0; i < 100; i++ {
-		if err := s.Set(ctx, []byte(fmt.Sprintf("full:%03d", i)), []byte("v")); err != nil {
+		if err := s.Set(ctx, fmt.Appendf(nil, "full:%03d", i), []byte("v")); err != nil {
 			b.Fatal(err)
 		}
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		s.Scan(ctx, []byte("full:"), []byte("full:\xff"), func(key, value []byte) error {
 			return nil
 		})
@@ -196,8 +196,8 @@ func BenchmarkScanFull(b *testing.B) {
 //	go test ./pebble -bench='BenchmarkOpen$|BenchmarkOpenMem$' -benchmem -run=^$
 func BenchmarkOpenMem(b *testing.B) {
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		s, err := OpenMem(storagej.DefaultOptions())
 		if err != nil {
 			b.Fatal(err)
@@ -208,7 +208,7 @@ func BenchmarkOpenMem(b *testing.B) {
 
 func BenchmarkOpenDisk(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.StopTimer()
 		dir := b.TempDir()
 		b.StartTimer()
@@ -226,18 +226,20 @@ func BenchmarkOpenDisk(b *testing.B) {
 // exist right now; no data copy), which is what makes SnapshotReader
 // practical for an ordinary request path rather than something to reserve
 // for rare, expensive operations.
+// Measures a Snapshot+Close pair. Under Pebble v2 most allocations come
+// from Close (its compaction scheduling check), not from taking the snapshot.
 func BenchmarkSnapshot(b *testing.B) {
 	s := openBenchStore(b)
 	ctx := context.Background()
 	for i := 0; i < 100; i++ {
-		if err := s.Set(ctx, []byte(fmt.Sprintf("k%03d", i)), []byte("v")); err != nil {
+		if err := s.Set(ctx, fmt.Appendf(nil, "k%03d", i), []byte("v")); err != nil {
 			b.Fatal(err)
 		}
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		snap := s.Snapshot()
 		snap.Close()
 	}

@@ -214,9 +214,11 @@ commentCount, err := snap.Get(ctx, commentCountKey)
 `Snapshot` returns a `*pebble.SnapshotReader` satisfying `storagej.Reader`
 (`Get`/`GetInto`/`Exists`/`Scan`/`PrefixScan` — everything but the writes,
 which wouldn't mean anything coherent on a moment that's already passed).
-It's cheap in Pebble — pins a sequence number, no data copy — so this is
-for an ordinary request path, not something to reserve for rare
-operations.
+It's cheap — Pebble pins a sequence number and copies no data — but not
+free: under Pebble v2 a Snapshot+Close pair costs roughly 600 ns and 14
+allocations (`BenchmarkSnapshot`), mostly on `Close`. That's fine for an
+ordinary request path; take one snapshot per request and read several keys
+through it, rather than taking one per key.
 
 This is different from `Checkpoint`: `Checkpoint` is a durable backup you
 can reopen after a restart; `Snapshot` is a consistency tool that lives
@@ -280,6 +282,15 @@ defer restored.Close()
 
 val, _ := restored.Get(ctx, []byte("user:1"))
 ```
+
+By default a store's WAL lives in its data directory, and a checkpoint of
+such a store opens read-only with default `Options`. Set `Options.WALDir`
+only to put the WAL on a separate disk, and then pass the same `WALDir`
+every time you open that store — Pebble v2 refuses a changed `WALDir`. That
+includes reopening a checkpoint taken from such a store: open it with the
+same `WALDir` (with default `Options` it fails with "WALDir changed from
+previous options"). Writes made to the source store after the checkpoint
+don't show up in the restored one (`TestCheckpointRestoreWithCustomWALDir`).
 
 ## Building Sortable Keys with keyspace
 

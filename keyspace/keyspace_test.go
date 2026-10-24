@@ -38,9 +38,9 @@ func TestAppendReusesBuffer(t *testing.T) {
 
 func TestKeyRejectsEmptySegment(t *testing.T) {
 	cases := []struct {
-		name                  string
-		tenant, typ, id       string
-		kind                  byte
+		name            string
+		tenant, typ, id string
+		kind            byte
 	}{
 		{"empty tenant", "", "post", "123", KindData},
 		{"empty type", "acme", "", "123", KindData},
@@ -171,8 +171,8 @@ func TestParseRejectsMalformedKey(t *testing.T) {
 		"no-separators-at-all",
 		"acme",
 		"acme:d",
-		"acme:d:post",     // missing id
-		"acme::post:123",  // empty kind
+		"acme:d:post",      // missing id
+		"acme::post:123",   // empty kind
 		"acme:dd:post:123", // kind is not a single byte before the next separator
 	}
 	for _, k := range cases {

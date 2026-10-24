@@ -65,7 +65,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type healthResponse struct {
-	Status  string                     `json:"status"`
+	Status  string                    `json:"status"`
 	Metrics *storagej.MetricsSnapshot `json:"metrics,omitempty"`
 }
 

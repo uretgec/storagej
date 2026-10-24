@@ -36,10 +36,10 @@ or knows about it.
 go get github.com/uretgec/storagej
 ```
 
-Requires **Go 1.22+** (this module's `go.mod` targets 1.22; the toolkit
-packages themselves use nothing newer than generics, which have been
-available since 1.18 — the floor is set by `go.mod`, not by a language
-feature any of these four packages actually needs).
+Requires **Go 1.26+** (this module's `go.mod` targets 1.26). The floor comes
+from Pebble v2's dependency graph (`golang.org/x/*`), not from a language
+feature the toolkit packages use: they need nothing newer than generics,
+available since 1.18.
 
 ## Quick Start
 
@@ -128,9 +128,12 @@ commentCount, err := snap.Get(ctx, commentCountKey)
 view satisfying the new `storagej.Reader` interface (`Get`/`GetInto`/
 `Exists`/`Scan`/`PrefixScan`; everything but the writes, which wouldn't
 mean anything coherent on a moment that's already passed). It's for reading
-several keys "as of one moment" on an ordinary request path — cheap in
-Pebble (pins a sequence number, no data copy; see `BenchmarkSnapshot`), not
-something to reserve for rare operations. Call `Close` exactly once when
+several keys "as of one moment" on an ordinary request path. Pebble pins a
+sequence number and copies no data, but under Pebble v2 closing a snapshot
+also runs its compaction-scheduling check, so a Snapshot+Close pair costs
+roughly 600 ns and 14 allocations (see `BenchmarkSnapshot`). Take one
+snapshot per request and read several keys through it; don't take one per
+key. Call `Close` exactly once when
 done: an unclosed snapshot pins the SST files it can still see, keeping
 superseded data from being compacted away for as long as it stays open.
 
