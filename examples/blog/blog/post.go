@@ -17,7 +17,7 @@ package blog
 import (
 	"time"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // PostType is the entity-type segment Post records are stored under

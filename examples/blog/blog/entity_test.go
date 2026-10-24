@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 // testWidget is a throwaway third entity type, used only to prove

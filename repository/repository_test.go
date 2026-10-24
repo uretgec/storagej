@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 func newTestCore(t *testing.T, tenant, typ string) *Core {

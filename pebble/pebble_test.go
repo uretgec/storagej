@@ -13,7 +13,7 @@ import (
 
 	pebblelib "github.com/cockroachdb/pebble/v2"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // openTestStore opens an isolated Pebble store in a temporary directory and

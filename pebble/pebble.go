@@ -17,7 +17,7 @@ import (
 	"github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/bloom"
 	"github.com/cockroachdb/pebble/v2/vfs"
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // Store is the Pebble implementation of storagej.Store. It is safe for

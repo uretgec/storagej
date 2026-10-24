@@ -1,4 +1,4 @@
-module github.com/uretgec/storagej
+module github.com/uretgec/storagej/v2
 
 go 1.26.0
 

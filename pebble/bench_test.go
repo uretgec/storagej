@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // openBenchStore opens an isolated Pebble store for benchmarks.

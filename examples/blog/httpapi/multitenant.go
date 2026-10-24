@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/examples/blog/blog"
-	"github.com/uretgec/storagej/keyspace"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/examples/blog/blog"
+	"github.com/uretgec/storagej/v2/keyspace"
 )
 
 // MountOptions configures optional cross-cutting behavior for

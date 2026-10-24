@@ -13,8 +13,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/keyspace"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/keyspace"
 )
 
 // ErrIndexConflict is returned by PutWithIndex when the field=value index

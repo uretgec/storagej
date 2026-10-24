@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 func testKey(t *testing.T) [32]byte {

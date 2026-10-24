@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 func newTestRepo(t *testing.T, tenant string) *PostRepository {

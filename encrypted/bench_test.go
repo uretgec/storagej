@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 func openBenchStores(b *testing.B) (enc *Store, raw storagej.Store) {

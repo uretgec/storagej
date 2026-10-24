@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // defaultListLimit is used when a GET /{resource} request omits ?limit.

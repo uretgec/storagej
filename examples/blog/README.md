@@ -31,7 +31,7 @@ entity now costs exactly what `page.go` shows: a struct, four methods, a
 two-line constructor.
 
 ```go
-import "github.com/uretgec/storagej/examples/blog/blog"
+import "github.com/uretgec/storagej/v2/examples/blog/blog"
 
 posts := blog.NewPostRepository(db, "acme") // scoped to tenant "acme"
 

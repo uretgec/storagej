@@ -33,7 +33,7 @@ or knows about it.
 ## Install
 
 ```bash
-go get github.com/uretgec/storagej
+go get github.com/uretgec/storagej/v2
 ```
 
 Requires **Go 1.26+** (this module's `go.mod` targets 1.26). The floor comes
@@ -50,8 +50,8 @@ import (
  "context"
  "log"
 
- "github.com/uretgec/storagej"
- "github.com/uretgec/storagej/pebble"
+ "github.com/uretgec/storagej/v2"
+ "github.com/uretgec/storagej/v2/pebble"
 )
 
 func main() {
@@ -185,7 +185,7 @@ storagej itself is byte-in, byte-out — it doesn't know what a "tenant" or a
 `fmt.Sprintf` keys:
 
 ```go
-import "github.com/uretgec/storagej/keyspace"
+import "github.com/uretgec/storagej/v2/keyspace"
 
 id := keyspace.NewID() // sortable, 26-char, time-ordered
 
@@ -222,7 +222,7 @@ but nothing about any specific struct: `Get`/`Put` take and return
 itself has no idea it exists.
 
 ```go
-import "github.com/uretgec/storagej/repository"
+import "github.com/uretgec/storagej/v2/repository"
 
 posts := repository.NewCore(db, "acme", "post") // tenant "acme", type "post"
 
@@ -260,7 +260,7 @@ one is expected. Optional, opt-in: nothing else in this toolkit imports it,
 and it adds no dependency beyond Go's own `crypto/*`.
 
 ```go
-import "github.com/uretgec/storagej/encrypted"
+import "github.com/uretgec/storagej/v2/encrypted"
 
 var key [32]byte // from crypto/rand — generate once, store outside this package
 rand.Read(key[:])
@@ -294,7 +294,7 @@ replacement anywhere one is expected. Optional, opt-in: nothing else in
 this toolkit imports it, no dependency beyond the standard library.
 
 ```go
-import "github.com/uretgec/storagej/watchable"
+import "github.com/uretgec/storagej/v2/watchable"
 
 w := watchable.New(db)
 

@@ -56,8 +56,8 @@ All examples assume these imports unless a section adds its own:
 import (
  "context"
 
- "github.com/uretgec/storagej"
- "github.com/uretgec/storagej/pebble"
+ "github.com/uretgec/storagej/v2"
+ "github.com/uretgec/storagej/v2/pebble"
 )
 ```
 
@@ -295,7 +295,7 @@ don't show up in the restored one (`TestCheckpointRestoreWithCustomWALDir`).
 ## Building Sortable Keys with keyspace
 
 ```go
-import "github.com/uretgec/storagej/keyspace"
+import "github.com/uretgec/storagej/v2/keyspace"
 
 id := keyspace.NewID() // sortable, 26-char, time-ordered
 
@@ -331,7 +331,7 @@ created, err := keyspace.Time(id) // time.Time
 but nothing about any specific struct.
 
 ```go
-import "github.com/uretgec/storagej/repository"
+import "github.com/uretgec/storagej/v2/repository"
 
 posts := repository.NewCore(db, "acme", "post") // tenant "acme", type "post"
 
@@ -371,7 +371,7 @@ second entity type (`Page`) reuses almost entirely — see
 import (
  "crypto/rand"
 
- "github.com/uretgec/storagej/encrypted"
+ "github.com/uretgec/storagej/v2/encrypted"
 )
 
 var key [32]byte
@@ -396,7 +396,7 @@ not a limitation to work around: `keyspace`'s sortable ids and
 ## Live Change Notifications (watchable.Store)
 
 ```go
-import "github.com/uretgec/storagej/watchable"
+import "github.com/uretgec/storagej/v2/watchable"
 
 w := watchable.New(db)
 
