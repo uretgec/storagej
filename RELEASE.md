@@ -1,4 +1,4 @@
-release: storagej v1.0.0
+release: storagej v2.0.0
 
 First stable release. storagej is a domain-agnostic key-value toolkit on
 top of CockroachDB's Pebble (v2.1.7): byte-in, byte-out at the core, with optional
