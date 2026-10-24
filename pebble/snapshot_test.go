@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // TestSnapshotStaysConsistentDuringLaterWrites is the actual point of a

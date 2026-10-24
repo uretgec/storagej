@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // nonceSize is AES-GCM's standard nonce length.

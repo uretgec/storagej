@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/examples/blog/blog"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/examples/blog/blog"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 // newTestServer opens a fresh store and mounts both /posts and /pages on a

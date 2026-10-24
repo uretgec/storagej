@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uretgec/storagej"
+	pebblelib "github.com/cockroachdb/pebble/v2"
+
+	"github.com/uretgec/storagej/v2"
 )
 
 // openTestStore opens an isolated Pebble store in a temporary directory and
@@ -208,8 +210,8 @@ func TestBatchCommit(t *testing.T) {
 
 	b := s.NewBatch()
 	for i := 0; i < 10; i++ {
-		key := []byte(fmt.Sprintf("key:%d", i))
-		val := []byte(fmt.Sprintf("val:%d", i))
+		key := fmt.Appendf(nil, "key:%d", i)
+		val := fmt.Appendf(nil, "val:%d", i)
 		if err := b.Set(key, val); err != nil {
 			t.Fatalf("batch set: %v", err)
 		}
@@ -220,7 +222,7 @@ func TestBatchCommit(t *testing.T) {
 	b.Close()
 
 	for i := 0; i < 10; i++ {
-		got, err := s.Get(ctx, []byte(fmt.Sprintf("key:%d", i)))
+		got, err := s.Get(ctx, fmt.Appendf(nil, "key:%d", i))
 		if err != nil {
 			t.Fatalf("get key:%d: %v", i, err)
 		}
@@ -301,7 +303,7 @@ func TestScanStopIteration(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		key := []byte(fmt.Sprintf("k%02d", i))
+		key := fmt.Appendf(nil, "k%02d", i)
 		if err := s.Set(ctx, key, []byte("v")); err != nil {
 			t.Fatalf("set: %v", err)
 		}
@@ -328,7 +330,7 @@ func TestScanRespectsContextCancellation(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 1000; i++ {
-		key := []byte(fmt.Sprintf("k%04d", i))
+		key := fmt.Appendf(nil, "k%04d", i)
 		if err := s.Set(ctx, key, []byte("v")); err != nil {
 			t.Fatalf("set: %v", err)
 		}
@@ -500,7 +502,7 @@ func TestMetricsSnapshotFields(t *testing.T) {
 	ctx := context.Background()
 
 	for i := 0; i < 100; i++ {
-		key := []byte(fmt.Sprintf("k%d", i))
+		key := fmt.Appendf(nil, "k%d", i)
 		if err := s.Set(ctx, key, bytes.Repeat([]byte("x"), 256)); err != nil {
 			t.Fatalf("set: %v", err)
 		}
@@ -736,5 +738,43 @@ func TestOpenMemFullInterface(t *testing.T) {
 	}
 	if !slices.Equal(got, []string{"a", "b", "c"}) {
 		t.Fatalf("prefixscan = %v, want [a b c]", got)
+	}
+}
+
+func TestCheckpointRestoreWithSameWALDir(t *testing.T) {
+	opts := storagej.DefaultOptions()
+	opts.WALDir = filepath.Join(t.TempDir(), "custom-wal")
+	s := openTestStore(t, opts)
+	ctx := context.Background()
+
+	if err := s.Set(ctx, []byte("k"), []byte("v")); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+
+	cpDir := filepath.Join(t.TempDir(), "checkpoint")
+	if err := s.Checkpoint(cpDir); err != nil {
+		t.Fatalf("checkpoint: %v", err)
+	}
+
+	restored, err := Open(cpDir, storagej.Options{ReadOnly: true, WALDir: opts.WALDir})
+	if err != nil {
+		t.Fatalf("open checkpoint: %v", err)
+	}
+	defer restored.Close()
+
+	if err := s.db.Set([]byte("late"), []byte("x"), pebblelib.Sync); err != nil {
+		t.Fatalf("late set: %v", err)
+	}
+
+	got, err := restored.Get(ctx, []byte("k"))
+	if err != nil {
+		t.Fatalf("get from checkpoint: %v", err)
+	}
+	if string(got) != "v" {
+		t.Fatalf("restored = %q, want %q", got, "v")
+	}
+
+	if ok, _ := restored.Exists(ctx, []byte("late")); ok {
+		t.Fatal("restored checkpoint sees a write made after it was taken")
 	}
 }

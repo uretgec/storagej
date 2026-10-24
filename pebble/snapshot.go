@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cockroachdb/pebble"
-	"github.com/uretgec/storagej"
+	"github.com/cockroachdb/pebble/v2"
+	"github.com/uretgec/storagej/v2"
 )
 
 // SnapshotReader is a consistent, point-in-time view of a Store, returned

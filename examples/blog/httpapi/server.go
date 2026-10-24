@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // defaultListLimit is used when a GET /{resource} request omits ?limit.
@@ -65,7 +65,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type healthResponse struct {
-	Status  string                     `json:"status"`
+	Status  string                    `json:"status"`
 	Metrics *storagej.MetricsSnapshot `json:"metrics,omitempty"`
 }
 

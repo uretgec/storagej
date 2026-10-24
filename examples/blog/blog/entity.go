@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/keyspace"
-	"github.com/uretgec/storagej/repository"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/keyspace"
+	"github.com/uretgec/storagej/v2/repository"
 )
 
 // slugField is the field name PutWithIndex/ReplaceIndex use for the

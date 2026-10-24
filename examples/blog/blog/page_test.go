@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/pebble"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/pebble"
 )
 
 func newTestPageRepo(t *testing.T, tenant string) *PageRepository {

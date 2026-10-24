@@ -3,7 +3,7 @@ package blog
 import (
 	"time"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // PageType is the entity-type segment Page records are stored under. See

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/uretgec/storagej"
-	"github.com/uretgec/storagej/examples/blog/blog"
+	"github.com/uretgec/storagej/v2"
+	"github.com/uretgec/storagej/v2/examples/blog/blog"
 )
 
 // repoForError optionally carries the HTTP status a repoFor failure should

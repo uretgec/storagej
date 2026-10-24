@@ -9,16 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/cockroachdb/pebble"
-	"github.com/cockroachdb/pebble/bloom"
-	"github.com/cockroachdb/pebble/vfs"
-	"github.com/uretgec/storagej"
+	"github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/bloom"
+	"github.com/cockroachdb/pebble/v2/vfs"
+	"github.com/uretgec/storagej/v2"
 )
 
 // Store is the Pebble implementation of storagej.Store. It is safe for
@@ -79,12 +78,9 @@ func open(path string, opts storagej.Options, fs vfs.FS) (*Store, error) {
 	}
 
 	// Level options: 2x progression with bloom filters.
-	levels := make([]pebble.LevelOptions, 7)
-	for i := 0; i < 7; i++ {
-		levels[i] = pebble.LevelOptions{
-			TargetFileSize: 2 << (20 + i), // 2MB → 128MB
-			FilterPolicy:   bloom.FilterPolicy(10),
-		}
+	var levels [7]pebble.LevelOptions
+	for i := range levels {
+		levels[i].FilterPolicy = bloom.FilterPolicy(10)
 	}
 
 	// A separate WAL directory is a real-filesystem concept: skip creating
@@ -93,9 +89,6 @@ func open(path string, opts storagej.Options, fs vfs.FS) (*Store, error) {
 	var walDir string
 	if fs == nil {
 		walDir = opts.WALDir
-		if walDir == "" && !opts.ReadOnly {
-			walDir = filepath.Join(path, "wal")
-		}
 		if walDir != "" {
 			if err := os.MkdirAll(walDir, 0o755); err != nil {
 				cache.Unref()
@@ -115,7 +108,7 @@ func open(path string, opts storagej.Options, fs vfs.FS) (*Store, error) {
 		MaxOpenFiles:                opts.MaxOpenFiles,
 		MemTableSize:                uint64(opts.MemTableSizeMB) * 1024 * 1024,
 		MemTableStopWritesThreshold: 4,
-		MaxConcurrentCompactions:    func() int { return compaction },
+		CompactionConcurrencyRange:  func() (lower, upper int) { return 1, compaction },
 		BytesPerSync:                1 << 20, // 1MB
 		L0CompactionThreshold:       2,
 		L0StopWritesThreshold:       1000,
@@ -229,8 +222,8 @@ func (s *Store) snapshot() storagej.MetricsSnapshot {
 
 	var totalFiles, totalSize int64
 	for _, lm := range m.Levels {
-		totalFiles += lm.NumFiles
-		totalSize += lm.Size
+		totalFiles += lm.TablesCount
+		totalSize += lm.TablesSize
 	}
 
 	return storagej.MetricsSnapshot{

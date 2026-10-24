@@ -33,13 +33,13 @@ or knows about it.
 ## Install
 
 ```bash
-go get github.com/uretgec/storagej
+go get github.com/uretgec/storagej/v2
 ```
 
-Requires **Go 1.22+** (this module's `go.mod` targets 1.22; the toolkit
-packages themselves use nothing newer than generics, which have been
-available since 1.18 — the floor is set by `go.mod`, not by a language
-feature any of these four packages actually needs).
+Requires **Go 1.26+** (this module's `go.mod` targets 1.26). The floor comes
+from Pebble v2's dependency graph (`golang.org/x/*`), not from a language
+feature the toolkit packages use: they need nothing newer than generics,
+available since 1.18.
 
 ## Quick Start
 
@@ -50,8 +50,8 @@ import (
  "context"
  "log"
 
- "github.com/uretgec/storagej"
- "github.com/uretgec/storagej/pebble"
+ "github.com/uretgec/storagej/v2"
+ "github.com/uretgec/storagej/v2/pebble"
 )
 
 func main() {
@@ -128,9 +128,12 @@ commentCount, err := snap.Get(ctx, commentCountKey)
 view satisfying the new `storagej.Reader` interface (`Get`/`GetInto`/
 `Exists`/`Scan`/`PrefixScan`; everything but the writes, which wouldn't
 mean anything coherent on a moment that's already passed). It's for reading
-several keys "as of one moment" on an ordinary request path — cheap in
-Pebble (pins a sequence number, no data copy; see `BenchmarkSnapshot`), not
-something to reserve for rare operations. Call `Close` exactly once when
+several keys "as of one moment" on an ordinary request path. Pebble pins a
+sequence number and copies no data, but under Pebble v2 closing a snapshot
+also runs its compaction-scheduling check, so a Snapshot+Close pair costs
+roughly 600 ns and 14 allocations (see `BenchmarkSnapshot`). Take one
+snapshot per request and read several keys through it; don't take one per
+key. Call `Close` exactly once when
 done: an unclosed snapshot pins the SST files it can still see, keeping
 superseded data from being compacted away for as long as it stays open.
 
@@ -182,7 +185,7 @@ storagej itself is byte-in, byte-out — it doesn't know what a "tenant" or a
 `fmt.Sprintf` keys:
 
 ```go
-import "github.com/uretgec/storagej/keyspace"
+import "github.com/uretgec/storagej/v2/keyspace"
 
 id := keyspace.NewID() // sortable, 26-char, time-ordered
 
@@ -219,7 +222,7 @@ but nothing about any specific struct: `Get`/`Put` take and return
 itself has no idea it exists.
 
 ```go
-import "github.com/uretgec/storagej/repository"
+import "github.com/uretgec/storagej/v2/repository"
 
 posts := repository.NewCore(db, "acme", "post") // tenant "acme", type "post"
 
@@ -257,7 +260,7 @@ one is expected. Optional, opt-in: nothing else in this toolkit imports it,
 and it adds no dependency beyond Go's own `crypto/*`.
 
 ```go
-import "github.com/uretgec/storagej/encrypted"
+import "github.com/uretgec/storagej/v2/encrypted"
 
 var key [32]byte // from crypto/rand — generate once, store outside this package
 rand.Read(key[:])
@@ -291,7 +294,7 @@ replacement anywhere one is expected. Optional, opt-in: nothing else in
 this toolkit imports it, no dependency beyond the standard library.
 
 ```go
-import "github.com/uretgec/storagej/watchable"
+import "github.com/uretgec/storagej/v2/watchable"
 
 w := watchable.New(db)
 

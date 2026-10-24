@@ -10,7 +10,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/uretgec/storagej"
+	"github.com/uretgec/storagej/v2"
 )
 
 // DefaultChannelBuffer is the buffer size Watch and WatchPrefix give each
